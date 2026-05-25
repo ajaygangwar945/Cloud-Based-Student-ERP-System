@@ -20,7 +20,7 @@ spec:
       containers:
         - name: backend
           image: ajaygangwar945/student-erp-backend:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           env:

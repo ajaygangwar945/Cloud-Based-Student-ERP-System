@@ -57,12 +57,12 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
+                // Apply configuration resources (ConfigMaps, Services, NodePorts, nodeSelectors)
+                sh 'kubectl apply -f k8s/'
+                
                 // Rollout updates on the active cluster targeting the exact build tag
                 sh "kubectl set image deployment/backend backend=${DOCKER_USER}/${DOCKER_BACKEND}:${BUILD_NUMBER}"
                 sh "kubectl set image deployment/frontend frontend=${DOCKER_USER}/${DOCKER_FRONTEND}:${BUILD_NUMBER}"
-                
-                // Apply configuration resources (ConfigMaps, Services, NodePorts, nodeSelectors)
-                sh 'kubectl apply -f k8s/'
                 
                 // Track rollout progress
                 sh 'kubectl rollout status deployment/backend'
