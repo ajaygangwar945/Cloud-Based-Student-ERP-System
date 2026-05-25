@@ -1,0 +1,43 @@
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: erp-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 2112
+      MYSQL_DATABASE: student_erp
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - mysql_data:/var/lib/mysql
+
+  backend:
+    build: ./backend
+    container_name: erp-backend
+    restart: always
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASSWORD=2112
+      - DB_NAME=student_erp
+    depends_on:
+      - mysql
+
+  frontend:
+    build: ./frontend
+    container_name: erp-frontend
+    restart: always
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:5000
+    depends_on:
+      - backend
+
+volumes:
+  mysql_data:

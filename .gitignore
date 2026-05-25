@@ -1,0 +1,28 @@
+# Dependency directories
+node_modules/
+
+# Environment variables (Sensitive)
+.env
+.env.*
+
+# Build output
+build/
+dist/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Terraform files
+.terraform/
+*.tfstate
+*.tfstate.*
+
+# SSH Keys and secrets
+*.pem
+
