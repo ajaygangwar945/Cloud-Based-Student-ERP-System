@@ -1,3 +1,4 @@
+// Cloud-Based Student ERP System — Main API Entrypoint
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
