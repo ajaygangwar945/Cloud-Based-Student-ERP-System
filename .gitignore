@@ -26,3 +26,5 @@ Thumbs.db
 # SSH Keys and secrets
 *.pem
 
+# Presentation Guide
+DEVOPS_PRESENTATION_GUIDE.txt
