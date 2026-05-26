@@ -9,6 +9,9 @@ pipeline {
         DOCKER_BACKEND  = 'student-erp-backend'
         DOCKER_FRONTEND = 'student-erp-frontend'
         
+        // Explicitly point kubectl to the developer's kubeconfig file
+        KUBECONFIG  = 'C:\\Users\\ajayg\\.kube\\config'
+
         // Bypasses any environment HTTP proxy redirects in local environment
         HTTP_PROXY  = ''
         HTTPS_PROXY = ''
