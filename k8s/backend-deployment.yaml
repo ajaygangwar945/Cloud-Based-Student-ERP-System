@@ -1,32 +1,48 @@
+# API Version for Kubernetes Deployments
 apiVersion: apps/v1
+# Deploy and scale stateless containerized workloads
 kind: Deployment
 metadata:
+  # Unique name for the backend API deployment
   name: backend
 spec:
+  # Keep exactly 1 replica container pod active in the cluster
   replicas: 1
+  # Tells the deployment how to find which pods to manage
   selector:
     matchLabels:
       app: backend
+  # Template defines the pod specification to be instantiated
   template:
     metadata:
       labels:
+        # Label applied to all backend pods for selector routing
         app: backend
       annotations:
+        # Instructs Prometheus scraper to scrape metrics from this pod
         prometheus.io/scrape: "true"
+        # Metrics scraping endpoint port of express API gateway
         prometheus.io/port: "5000"
     spec:
+      # Pin this deployment to a specific worker node hostname in production
       nodeSelector:
         kubernetes.io/hostname: ip-172-31-47-49
       containers:
+        # Container specifications running the Node.js API
         - name: backend
+          # Production-grade Node.js container image pulled from Docker Hub
           image: ajaygangwar945/student-erp-backend:latest
+          # Always pull the latest container image from the registry on restarts
           imagePullPolicy: Always
           ports:
+            # Internal container port exposed inside the cluster
             - containerPort: 5000
           env:
+            # Environment variables injected directly into the API runtime process
             - name: PORT
               value: "5000"
             - name: DB_HOST
+              # Resolves automatically to the MySQL Service IP using K8s cluster DNS
               value: "mysql"
             - name: DB_USER
               value: "root"

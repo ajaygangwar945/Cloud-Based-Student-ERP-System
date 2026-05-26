@@ -1,569 +1,255 @@
-Your Cloud-Based Student ERP System Using DevOps Practices is actually a very strong project idea because it can cover almost every major DevOps concept in one real-world application.
+================================================================================
+          PRODUCTION SYSTEM DOCUMENTATION: CLOUD-BASED STUDENT ERP SYSTEM
+================================================================================
 
-The best approach is:
+This document serves as the official, comprehensive project manual and technical
+specification for the Cloud-Based Student ERP System. It details the actual 
+production implementation, architectural components, relational database schema,
+container configurations, deployment blueprints, CI/CD automated pipeline, and 
+observability integrations.
 
-First build a working ERP application → then apply DevOps practices step by step.
+--------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY & TECH STACK
+--------------------------------------------------------------------------------
+The legacy student records portal has been fully re-engineered into a modern 3-tier,
+highly-available, scalable, and observable cloud application. It utilizes modern
+DevOps automation and GitOps principles to deploy seamlessly across virtual nodes.
 
-If you directly start with Kubernetes/Jenkins/Terraform without a working app, the project becomes very confusing.
+Active Technology Stack:
+* Frontend: Vite + React 19, Axios, dynamic role-based dashboards, CSS dark mode, 
+  glassmorphism UI styling, and responsive tables.
+* Backend API: Node.js + Express, MySQL2 relational driver, JWT authentication, 
+  Bcrypt secure password hashing, and prom-client telemetry.
+* Relational Database: MySQL Relational Database Service.
+* Containerization: Docker (multi-stage production builds and Docker Compose).
+* Orchestration: Multi-Node Kubernetes (control plane and workers running Calico CNI).
+* IaC: Terraform provisioning AWS EC2 instances, security firewalls, and networks.
+* Automated CI/CD: Jenkins pipeline (Declarative pipeline as code).
+* Observability Stack: Prometheus (time-series scraping) and Grafana (metrics dashboard).
 
-1. What You Will Build
+--------------------------------------------------------------------------------
+2. PROJECT FOLDER STRUCTURE
+--------------------------------------------------------------------------------
+The project root is cleanly organized as follows (excluding temporary directories):
 
-You will build a complete ERP system with:
-
-Modules
-Student Login
-Faculty Login
-Admin Login
-Attendance Management
-Marks Management
-Fee Management
-Notices
-Dashboard
-Tech Stack
-
-From your synopsis:
-
-Layer	Technology
-Frontend	React.js
-Backend	Node.js + Express
-Database	MySQL
-Version Control	Git + GitHub
-Containerization	Docker
-CI/CD	Jenkins
-Orchestration	Kubernetes + Minikube
-Monitoring	Prometheus + Grafana
-IaC	Terraform
-Cloud	AWS
-2. Main Goal of This Project
-
-This project should demonstrate ALL DevOps concepts:
-
-DevOps Concept	How Your Project Uses It
-Version Control	GitHub repository
-CI	Jenkins auto build/testing
-CD	Auto deployment
-Containerization	Docker
-Orchestration	Kubernetes
-Scaling	Kubernetes replicas
-Monitoring	Prometheus + Grafana
-Infrastructure as Code	Terraform
-Cloud Deployment	AWS
-Security	JWT + Secrets
-Automation	Jenkins pipelines
-3. Complete Development Roadmap
-PHASE 1 — Project Planning
-Step 1: Understand Architecture
-
-Your architecture diagram on page 4 is very important.
-
-Flow:
-
-Browser
-   ↓
-React Frontend
-   ↓
-Node.js Backend API
-   ↓
-MySQL Database
-
-DevOps Layer:
-
-GitHub → Jenkins → Docker → Kubernetes
-
-Monitoring:
-
-Prometheus → Grafana
-
-Cloud:
-
-AWS EC2 / EKS / RDS
-PHASE 2 — Local ERP Development
-Step 2: Setup Folder Structure
-
-Create:
-
-student-erp-devops/
+Cloud-Based-Student-ERP-System/
+├── Jenkinsfile                    # Production GitOps CI/CD pipeline
+├── Jenkinsfile-local              # Local testing GitOps pipeline
+├── cleanup-local.ps1              # Local Docker/Minikube targeted clean script
+├── docker-compose.yml             # Local service orchestration configuration
+├── CLOUD_DEVOPS_GUIDE.txt         # Production cloud runbook and guides (ignored)
+├── LOCAL_DEVOPS_GUIDE.txt         # Local development runbook and guides (ignored)
+├── PROJECT_CREATION_DETAILS.txt   # Step-by-step master creation diary (ignored)
 │
-├── frontend/
-├── backend/
-├── database/
-├── docker/
-├── k8s/
-├── jenkins/
-├── terraform/
-└── monitoring/
-Step 3: Initialize Git Repository
-
-Purpose:
-Learn version control.
-
-Commands:
-
-git init
-git add .
-git commit -m "Initial commit"
-
-Create GitHub repo and push code.
-
-Concept Learned:
-
-Git
-GitHub
-Branching
-Commits
-Step 4: Build Backend API (Node.js + Express)
-
-Purpose:
-Create REST APIs.
-
-Install:
-
-npm init -y
-npm install express mysql2 cors dotenv bcrypt jsonwebtoken
-
-Create APIs:
-
-API	Purpose
-/login	Authentication
-/students	Student data
-/attendance	Attendance
-/marks	Marks
-/fees	Fee status
-/notices	Notices
-
-Concepts Learned:
-
-Backend Development
-APIs
-Authentication
-JWT
-Middleware
-Step 5: Setup MySQL Database
-
-Create database:
-
-CREATE DATABASE student_erp;
-
-Tables from your synopsis:
-
-students
-faculty
-departments
-attendance
-marks
-fees
-notices
-users
-Step 6: Build Frontend (React)
-
-Purpose:
-Create dashboards.
-
-Install:
-
-npx create-react-app frontend
-
-Pages:
-
-Page	User
-Login	All
-Student Dashboard	Student
-Faculty Dashboard	Faculty
-Admin Dashboard	Admin
-
-Features:
-
-Attendance table
-Marks table
-Fee status
-Notices
-
-Concepts Learned:
-
-React
-API Integration
-Routing
-State management
-PHASE 3 — DevOps Integration
-Step 7: Dockerize Backend
-
-Purpose:
-Containerization.
-
-Create Dockerfile
-
-Example flow:
-
-FROM node:20
-WORKDIR /app
-COPY . .
-RUN npm install
-CMD ["node","server.js"]
-
-Build image:
-
-docker build -t student-erp-backend .
-
-Run:
-
-docker run -p 5000:5000 student-erp-backend
-
-Concept Learned:
-
-Docker Image
-Containers
-Isolation
-Step 8: Dockerize Frontend
-
-Create frontend Dockerfile.
-
-Run React app inside container.
-
-Concepts:
-
-Multi-container architecture
-Step 9: Use Docker Compose
-
-Purpose:
-Run all services together.
-
-Create:
-
-services:
-  frontend:
-  backend:
-  mysql:
-
-Run:
-
-docker-compose up
-
-Concepts Learned:
-
-Service orchestration
-Networking
-Environment variables
-PHASE 4 — Kubernetes
-Step 10: Install Minikube + kubectl
-
-Purpose:
-Local Kubernetes cluster.
-
-You learn:
-
-Cluster
-Node
-Pod
-Deployment
-Service
-Step 11: Create Kubernetes YAML Files
-
-Inside k8s/
-
-Files:
-
-frontend-deployment.yaml
-backend-deployment.yaml
-mysql-deployment.yaml
-frontend-service.yaml
-backend-service.yaml
-
-Concepts Learned:
-
-Pods
-ReplicaSets
-Deployments
-Services
-Step 12: Deploy to Kubernetes
-
-Commands:
-
-kubectl apply -f .
-
-Check pods:
-
-kubectl get pods
-
-Scaling:
-
-kubectl scale deployment backend --replicas=3
-
-This demonstrates:
-
-Scalability
-Self-healing
-High availability
-
-Exactly mentioned in your synopsis.
-
-PHASE 5 — CI/CD PIPELINE
-Step 13: Install Jenkins
-
-Purpose:
-Automation.
-
-Jenkins automates:
-
-Build
-Test
-Docker build
-Deployment
-
-(as shown in your page 5 CI/CD flowchart)
-
-Step 14: Create Jenkins Pipeline
-
-Create:
-
-Jenkinsfile
-
-Pipeline stages:
-
-1. Pull Code
-2. Install Dependencies
-3. Run Tests
-4. Build Docker Image
-5. Push Docker Image
-6. Deploy to Kubernetes
-
-Example pipeline:
-
-pipeline {
-    agent any
-
-    stages {
-        stage('Build') {
-            steps {
-                sh 'npm install'
-            }
-        }
-
-        stage('Docker Build') {
-            steps {
-                sh 'docker build -t student-erp .'
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                sh 'kubectl apply -f k8s/'
-            }
-        }
-    }
-}
-
-Concepts Learned:
-
-CI/CD
-Automation
-Pipeline as Code
-PHASE 6 — MONITORING
-Step 15: Install Prometheus
-
-Purpose:
-Collect metrics.
-
-Metrics:
-
-CPU
-Memory
-Requests
-Pod health
-
-Exactly from your synopsis.
-
-Step 16: Install Grafana
-
-Purpose:
-Visual dashboards.
-
-Dashboards:
-
-CPU usage
-RAM usage
-Active users
-Pod status
-
-Concepts Learned:
-
-Observability
-Monitoring
-Metrics Visualization
-PHASE 7 — SECURITY
-Step 17: Implement Security
-
-From your synopsis:
-
-Implement:
-
-JWT authentication
-Password hashing
-HTTPS
-Role-based access
-
-Concepts Learned:
-
-DevSecOps
-Secure APIs
-PHASE 8 — CLOUD DEPLOYMENT
-Step 18: Learn AWS Basics
-
-Use:
-
-EC2 → Virtual server
-RDS → MySQL database
-EKS → Kubernetes cluster
-Step 19: Use Terraform
-
-Purpose:
-Infrastructure as Code.
-
-Terraform creates:
-
-EC2
-Security groups
-Networking
-
-Example:
-
-resource "aws_instance" "server" {
-  ami = "ami-id"
-  instance_type = "t2.micro"
-}
-
-Concept Learned:
-
-IaC
-Automation
-Reproducible infrastructure
-Step 20: Final Production Deployment
-
-Final flow:
-
-Developer Push
-      ↓
-GitHub
-      ↓
-Jenkins Pipeline
-      ↓
-Docker Build
-      ↓
-Docker Hub
-      ↓
-Kubernetes Deployment
-      ↓
-Monitoring via Grafana
-
-Exactly same as your CI/CD flowchart on page 5.
-
-4. BEST ORDER TO LEARN EVERYTHING
-
-Follow this exact order:
-
-Priority	Learn
-1	Git + GitHub
-2	Node.js + Express
-3	MySQL
-4	React
-5	Docker
-6	Docker Compose
-7	Kubernetes
-8	Jenkins
-9	Prometheus
-10	Grafana
-11	AWS
-12	Terraform
-
-This is the most important advice.
-
-Do NOT start with Kubernetes or Terraform.
-
-5. Features That Will Impress Teachers
-
-Add these:
-
-Advanced Features
-Role-based dashboards
-JWT authentication
-Attendance analytics
-PDF report generation
-Docker Compose
-Kubernetes scaling demo
-Grafana live dashboard
-Jenkins auto deployment
-Terraform automation
-6. What Makes This a FULL DEVOPS PROJECT
-
-Most students only:
-
-create a website
-OR
-deploy Docker
-
-But your project includes:
-
-✅ Application Development
-✅ CI/CD
-✅ Docker
-✅ Kubernetes
-✅ Monitoring
-✅ Security
-✅ IaC
-✅ Cloud Deployment
-
-This becomes a complete DevOps lifecycle project.
-
-7. Recommended Timeline
-Week	Work
-1	Project setup + Git
-2	Backend APIs
-3	Frontend
-4	MySQL integration
-5	Docker
-6	Kubernetes
-7	Jenkins CI/CD
-8	Monitoring
-9	AWS
-10	Terraform + Final Testing
-8. Final Project Architecture
-React Frontend
-      ↓
-Node.js Backend
-      ↓
-MySQL Database
-
-Docker Containers
-      ↓
-Kubernetes Cluster
-      ↓
-Jenkins CI/CD
-      ↓
-Prometheus Monitoring
-      ↓
-Grafana Dashboards
-      ↓
-AWS Cloud
-9. What You Will Learn After Completing This
-
-After this project you will know:
-
-Full Stack Development
-DevOps Lifecycle
-CI/CD
-Docker
-Kubernetes
-Cloud Computing
-Monitoring
-Infrastructure as Code
-DevSecOps
-Production Deployment
-
-This is enough to make a very strong resume project for:
-
-DevOps Engineer
-Cloud Engineer
-Full Stack Developer
-SRE
-Platform Engineer
-
-based on your synopsis and architecture diagrams/pages in the uploaded PDF.
+├── backend/                       # REST API SERVICE
+│   ├── Dockerfile                 # Slim production Node.js builder
+│   ├── package.json               # Backend dependencies (Express, JWT, Bcrypt)
+│   ├── server.js                  # API entry, JWT middlewares, prom metrics
+│   └── seed.js                    # Database development seeder
+│
+├── frontend/                      # REACT USER INTERFACE
+│   ├── Dockerfile                 # Optimized multi-stage React/Nginx builder
+│   ├── vite.config.js             # Vite compiler definitions
+│   ├── index.html                 # App entry point
+│   ├── package.json               # Frontend dependencies (React 19, Axios)
+│   └── src/                       # React components, routing, and index.css
+│
+├── database/                      # DATABASE SCHEMA DESIGN
+│   └── init.sql                   # MySQL tables creation script and pre-seeds
+│
+├── k8s/                           # PRODUCTION KUBERNETES MANIFESTS
+│   ├── mysql-configmap.yaml       # Holds root credentials and databases
+│   ├── mysql-deployment.yaml      # mysql persistent volume controller
+│   ├── backend-deployment.yaml    # Node API pods replica controller
+│   ├── backend-service.yaml       # Exposes Node API on NodePort 30001
+│   ├── frontend-deployment.yaml   # Vite Nginx pods replica controller
+│   └── frontend-service.yaml      # Exposes Vite Frontend on NodePort 30000
+│
+├── monitoring/                    # observABILITY & SCRAPING MANIFESTS
+│   ├── prometheus-rbac.yaml       # RBAC roles for metrics scraping
+│   ├── prometheus-config.yaml     # Scrapes targets (/metrics endpoints)
+│   ├── prometheus-deployment.yaml # Prometheus pod controller on NodePort 30090
+│   ├── node-exporter.yaml         # Daemonset capturing host system metrics
+│   ├── grafana-datasources-configmap.yaml # Provisions Prom datasource inside Grafana
+│   └── grafana-deployment.yaml    # Grafana dashboard controller on NodePort 30030
+│
+└── terraform/                     # INFRASTRUCTURE AS CODE
+    ├── main.tf                    # Declares AWS cluster security group & 3 EC2 nodes
+    └── .terraform.lock.hcl        # Locks validated AWS provider plugins
+
+--------------------------------------------------------------------------------
+3. RELATIONAL DATABASE SCHEMA (MySQL)
+--------------------------------------------------------------------------------
+The institutional data layer is constructed inside the 'student_erp' database 
+defined in `database/init.sql`. The schema enforces referential integrity:
+
+* 'users': Core account details.
+  - Column: id (INT Auto-Increment, Primary Key)
+  - Column: username (VARCHAR, Unique)
+  - Column: password (VARCHAR, Salted Bcrypt Hash)
+  - Column: role (ENUM: 'admin', 'student', 'faculty')
+* 'departments': Institutional divisions.
+  - Column: id (INT Auto-Increment, Primary Key)
+  - Column: name (VARCHAR, Unique)
+* 'students': Profile registry linked to users & departments.
+  - Column: id (INT Auto-Increment, Primary Key)
+  - Column: user_id (INT, Foreign Key referencing users.id ON DELETE CASCADE)
+  - Column: department_id (INT, Foreign Key referencing departments.id ON DELETE SET NULL)
+  - Column: enrollment_no (VARCHAR, Unique)
+  - Column: semester (INT)
+* 'faculty': Teacher profiles.
+  - Column: id (INT Auto-Increment, Primary Key)
+  - Column: user_id (INT, Foreign Key referencing users.id ON DELETE CASCADE)
+  - Column: department_id (INT, Foreign Key referencing departments.id ON DELETE SET NULL)
+  - Column: designation (VARCHAR)
+* 'attendance': Daily logs with subjects and states.
+  - Column: id (INT Auto-Increment, Primary Key)
+  - Column: student_id (INT, Foreign Key referencing students.id ON DELETE CASCADE)
+  - Column: subject (VARCHAR)
+  - Column: attendance_date (DATE)
+  - Column: status (ENUM: 'present', 'absent', 'late')
+* 'marks': Course grades linked to students.
+  - Column: id (INT Auto-Increment, Primary Key)
+  - Column: student_id (INT, Foreign Key referencing students.id ON DELETE CASCADE)
+  - Column: subject (VARCHAR)
+  - Column: marks_obtained (DECIMAL(5,2))
+  - Column: max_marks (DECIMAL(5,2))
+  - Column: semester (INT)
+* 'fees': Invoicing ledger.
+  - Column: id (INT Auto-Increment, Primary Key)
+  - Column: student_id (INT, Foreign Key referencing students.id ON DELETE CASCADE)
+  - Column: amount_due (DECIMAL(10,2))
+  - Column: amount_paid (DECIMAL(10,2))
+  - Column: status (ENUM: 'paid', 'pending', 'partial')
+  - Column: due_date (DATE)
+* 'notices': Broadcast announcements.
+  - Column: id (INT Auto-Increment, Primary Key)
+  - Column: title (VARCHAR)
+  - Column: content (TEXT)
+  - Column: posted_by (INT, Foreign Key referencing users.id ON DELETE SET NULL)
+
+--------------------------------------------------------------------------------
+4. CONTAINERIZATION & MULTI-STAGE OPTIMIZATION (Docker)
+--------------------------------------------------------------------------------
+To guarantee clean builds and lightweight virtual environments, optimized Docker 
+configurations are implemented.
+
+A. Backend Dockerfile (`backend/Dockerfile`):
+Uses a single-stage, lightweight `node:20-alpine` base image, locking down 
+development configurations and injecting production variables.
+* Directory: `/app`
+* Exposes: Port `5000`
+
+B. Frontend Dockerfile (`frontend/Dockerfile`):
+Adopts a highly-efficient **Multi-Stage Build** to compile static assets and
+serve them through Nginx:
+* **Stage 1 (Build):** Compiles the Vite React code inside a `node:20-alpine` 
+  container. Emits highly-optimized Javascript/CSS bundles into `/app/dist`.
+* **Stage 2 (Nginx):** Copies the built assets from Stage 1 directly into an 
+  ultra-slim `nginx:alpine` image. Static assets are stored inside Nginx's 
+  HTML root directory (`/usr/share/nginx/html`).
+* **Result:** Production size is reduced from 450MB+ down to ~35MB, minimizing
+  disk requirements and accelerating page load speeds.
+
+--------------------------------------------------------------------------------
+5. KUBERNETES ORCHESTRATION BLUEPRINT
+--------------------------------------------------------------------------------
+The production Kubernetes manifests deploy the application onto multi-node clusters:
+
+* **MySQL Deployment (`k8s/mysql-deployment.yaml`):**
+  Spins up a persistent database container. Mounts storage path `/var/lib/mysql`
+  directly inside the pod to prevent data loss. Configured via `mysql-configmap.yaml`
+  to securely inject database name (`student_erp`), port (`3306`), and users.
+* **Backend API Deployment (`k8s/backend-deployment.yaml`):**
+  Spins up Node.js pods running Express. Exposes endpoints to frontend clients 
+  using a Kubernetes Service exposed on NodePort `30001`.
+* **Frontend Web Deployment (`k8s/frontend-deployment.yaml`):**
+  Runs the compiled React/Nginx containers. Renders high-speed, dynamic portals.
+  Exposed to the public internet using a Kubernetes Service mapped to NodePort `30000`.
+
+--------------------------------------------------------------------------------
+6. AUTOMATED GITOPS CI/CD PIPELINE (Jenkins)
+--------------------------------------------------------------------------------
+The Jenkins pipeline is written as a declarative pipeline-as-code inside the root 
+`Jenkinsfile`. When a developer pushes code to GitHub, webhooks automatically 
+trigger the following continuous integration and rollout stages:
+
+1. **Pull Code:** Pulls the active repository branch (`main`) dynamically.
+2. **Run Tests:** Triggers validation, integration, and linting checks.
+3. **Docker Hub Login:** Authenticates against the Docker Registry using credentials 
+   stored securely in Jenkins Credentials Manager (`docker-hub-credentials`).
+4. **Build Docker Images:** Compiles both frontend and backend Dockerfiles. Tags 
+   them with two tags: `latest` and a unique `${BUILD_NUMBER}` for strict build auditing.
+5. **Push to Docker Hub:** Uploads the built images to Docker Hub (`ajaygangwar945/`).
+6. **Deploy to Kubernetes:** 
+   - Applies the K8s configurations (`kubectl apply -f k8s/`).
+   - Performs a zero-downtime rolling update rollout by explicitly targeting 
+     the fresh build tag:
+     * `kubectl set image deployment/backend backend=ajaygangwar945/student-erp-backend:${BUILD_NUMBER}`
+     * `kubectl set image deployment/frontend frontend=ajaygangwar945/student-erp-frontend:${BUILD_NUMBER}`
+   - Tracks rollout status to confirm container readiness (`kubectl rollout status`).
+7. **Cleanup (Post Action):** Deletes local images built in the workspace to save 
+   precious virtual hard drive storage on the AWS master node.
+
+--------------------------------------------------------------------------------
+7. MONITORING & OBSERVABILITY INTEGRATIONS (Prometheus & Grafana)
+--------------------------------------------------------------------------------
+Real-time monitoring tells us exactly how our live cloud cluster is behaving:
+
+* **Telemetry Scraping:**
+  The Express API leverages `prom-client` to capture active endpoint volumes, 
+  latencies, CPU pressure, RAM usage, and active mock traffic spikes. These metrics
+  are exposed to the internal network on `/metrics`.
+* **Prometheus Setup:**
+  Prometheus crawls all cluster pods and scrapes `/metrics` endpoints. Configured via 
+  `prometheus-rbac.yaml` with necessary service account permissions. Mapped to 
+  NodePort `30090`.
+* **Grafana Dashboards:**
+  Grafana connects directly to Prometheus. Exposes premium metrics dashboards mapped 
+  to NodePort `30030`.
+* **Persistence Fix:**
+  Prometheus and Grafana deployments are pinned to Worker Node 1 using Kubernetes 
+  `nodeSelector`. Their data directories are mapped to host directory paths 
+  (`/var/lib/prometheus-storage` and `/var/lib/grafana-storage`). This preserves 
+  scraped metrics, data pipelines, and dashboards across reboots or VM power cycles!
+
+--------------------------------------------------------------------------------
+8. SECURITY ARCHITECTURE
+--------------------------------------------------------------------------------
+The Student ERP security follows a robust, modern defense-in-depth model:
+* **Password Hashing:** Passwords are never stored in plaintext. They are salted 
+  and hashed securely using **Bcrypt** (60-character hash length).
+* **Role-Based Access Control (RBAC):** Users are assigned a strict, immutable 
+  role ('admin', 'student', or 'faculty'). The API verifies user roles inside JWTs 
+  to protect restricted operations.
+* **JSON Web Token (JWT):** Secure token authentication. The backend signs a JWT 
+  upon login using a secure signature secret. The token is valid for 2 hours, 
+  allowing students and teachers to browse safely.
+* **Securing secrets:** Host systems inject database passwords via Kubernetes 
+  ConfigMaps rather than hardcoding them in code.
+
+--------------------------------------------------------------------------------
+9. PRODUCTION CLOUD LIFE-CYCLE OPERATIONS
+--------------------------------------------------------------------------------
+To manage your production AWS EC2 multi-node cluster, keep these commands on hand:
+
+1. Waking up all cloud instances:
+   > aws ec2 start-instances --instance-ids i-0a28f67221289af6a i-05d75c5b835130230 i-08624e36ec8a4e35d
+
+2. Refreshing dynamic IP mapping:
+   > cd terraform
+   > terraform refresh
+   > cd ..
+
+3. Restoring internal CNI bridge routing on reboots:
+   > ssh -i terraform/erp-cloud-key.pem ubuntu@<MASTER_IP> "sudo modprobe br_netfilter && sudo sysctl net.bridge.bridge-nf-call-iptables=1"
+   > ssh -i terraform/erp-cloud-key.pem ubuntu@<WORKER_1_IP> "sudo modprobe br_netfilter && sudo sysctl net.bridge.bridge-nf-call-iptables=1"
+   > ssh -i terraform/erp-cloud-key.pem ubuntu@<WORKER_2_IP> "sudo modprobe br_netfilter && sudo sysctl net.bridge.bridge-nf-call-iptables=1"
+
+4. Clean pod rollout restarts:
+   > ssh -i terraform/erp-cloud-key.pem ubuntu@<MASTER_IP> "kubectl rollout restart deployment backend frontend mysql prometheus grafana"
+
+5. Verification:
+   > ssh -i terraform/erp-cloud-key.pem ubuntu@<MASTER_IP> "kubectl get pods -o wide"
+
+================================================================================

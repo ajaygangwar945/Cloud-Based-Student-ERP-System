@@ -1,23 +1,36 @@
+# API Version for Kubernetes Deployments
 apiVersion: apps/v1
+# Deploy and scale stateless containerized workloads
 kind: Deployment
 metadata:
+  # Unique name for the frontend deployment
   name: frontend
 spec:
+  # Keep exactly 1 replica container pod active in the cluster
   replicas: 1
+  # Tells the deployment how to find which pods to manage
   selector:
     matchLabels:
       app: frontend
+  # Template defines the pod specification to be instantiated
   template:
     metadata:
       labels:
+        # Label applied to all frontend pods for selector routing
         app: frontend
     spec:
       containers:
+        # Container specifications running the React/Nginx static web server
         - name: frontend
+          # Production-grade frontend container image pulled from Docker Hub
           image: ajaygangwar945/student-erp-frontend:latest
+          # Always pull the latest container image from the registry on restarts
           imagePullPolicy: Always
           ports:
+            # Internal container port exposed inside the cluster
             - containerPort: 5173
           env:
+            # Environment variables injected directly into the frontend process
             - name: VITE_API_URL
+              # Base API URL pointing to the Backend service inside the cluster
               value: "http://backend:5000"

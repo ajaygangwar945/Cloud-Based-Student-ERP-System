@@ -1,13 +1,22 @@
+# Kubernetes Service API Version
 apiVersion: v1
+# Expose the Frontend application pods as a network service
 kind: Service
 metadata:
+  # Unique name for the frontend service in the cluster namespace
   name: frontend
 spec:
+  # Route network traffic to any pod matching the label 'app: frontend'
   selector:
     app: frontend
   ports:
+    # Port configuration mapping external access to internal pod ports
     - protocol: TCP
+      # Exposed port inside the Kubernetes cluster network
       port: 5173
+      # Target port on the container itself where Vite/Nginx is listening
       targetPort: 5173
+      # External static port exposed on every virtual node for browser/client access
       nodePort: 30000
+  # NodePort service type exposes the port externally on node public IPs
   type: NodePort

@@ -1,41 +1,57 @@
+# API Version for Kubernetes Deployments
 apiVersion: apps/v1
+# Deploy and scale stateless containerized workloads (MySQL)
 kind: Deployment
 metadata:
+  # Unique name for the database deployment
   name: mysql
 spec:
+  # Selector matching labels for managed pods
   selector:
     matchLabels:
       app: mysql
   template:
     metadata:
       labels:
+        # Label applied to all MySQL pods
         app: mysql
     spec:
       containers:
+        # Container specifications running the MySQL relational database
         - name: mysql
+          # MySQL official lightweight 8.0 base container
           image: mysql:8.0
           env:
+            # Environment variables injecting root access credentials
             - name: MYSQL_ROOT_PASSWORD
               value: "2112"
             - name: MYSQL_DATABASE
               value: "student_erp"
           ports:
+            # Relational database port exposed internally inside cluster
             - containerPort: 3306
           volumeMounts:
+            # Mount SQL seeder script into MySQL initialization directory
             - name: mysql-initdb
               mountPath: /docker-entrypoint-initdb.d/init.sql
               subPath: init.sql
       volumes:
+        # Volumes definition referencing ConfigMap-backed storage
         - name: mysql-initdb
           configMap:
             name: mysql-initdb-config
 ---
+# Kubernetes Service API Version
 apiVersion: v1
+# Expose the MySQL pods as an internal network service
 kind: Service
 metadata:
+  # Name used in DNS within the cluster (resolves to this service's virtual IP)
   name: mysql
 spec:
   ports:
+    # Service port exposing database connectivity internally
     - port: 3306
+  # Route traffic to pods matching label 'app: mysql'
   selector:
     app: mysql

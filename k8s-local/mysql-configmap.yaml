@@ -1,8 +1,12 @@
+# API Version for Kubernetes ConfigMap configuration resources
 apiVersion: v1
+# Store configuration details and initialization scripts separate from pod containers
 kind: ConfigMap
 metadata:
+  # Name used by Pod volumes to mount this configuration resource
   name: mysql-initdb-config
 data:
+  # The database SQL seeder script to initialize tables and insert mock accounts on MySQL startup
   init.sql: |
     CREATE DATABASE IF NOT EXISTS student_erp;
     USE student_erp;
