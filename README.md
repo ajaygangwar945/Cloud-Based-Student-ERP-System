@@ -37,50 +37,147 @@ The legacy paper-and-spreadsheet institutional workflow has been re-engineered i
 
 ---
 
-## 2. Interactive Architecture & System Flow
+## 2. System Architecture & Working Diagrams
 
-The diagram below details the dual lifecycle of the project—spanning the local self-contained DevOps pipeline and the public cloud GitOps deployment pipeline on AWS:
+This section details both the static structural architectures and dynamic operational working flows for both the **Local Development Pipeline** and the **AWS Cloud Production Environment**.
+
+---
+
+### A. System Architecture Diagrams
+
+#### 1. Local Development Architecture
+
+This diagram displays the structural layout of the self-contained cluster environment running locally on the Windows 11 host using Minikube and Docker containers:
 
 ```mermaid
 graph TD
-  subgraph Developer_Workstation ["1. Developer Workstation (Local Pipeline)"]
-    Dev[Developer] -->|Local Commits| GitWorkspace[Local Git Repo]
-    GitWorkspace -->|Local Polling every 1m| JenkinsLocal[Local Jenkins Server]
-    JenkinsLocal -->|CI/CD Declarative Pipeline| Minikube[Minikube Cluster]
-    DockerCompose[Docker Compose Stack] -.->|Host Port Bindings| Ports["Ports: 5173, 5000"]
-  end
-
-  subgraph Cloud_Infrastructure ["2. Cloud Production Pipeline"]
-    Dev2[Developer] -->|Git Push| GitHub[GitHub Remote Repo]
-    GitHub -->|Webhooks Trigger| JenkinsCloud[AWS Jenkins Server]
-    JenkinsCloud -->|1. Build & Audit Tag| DockerHub[Docker Hub Registry]
-    DockerHub -->|2. Zero-Downtime Rollout| AWSCluster[Kubernetes Cluster on AWS]
-  end
-
-  subgraph AWS_EC2_Kubernetes_Nodes ["3. Production Kubernetes Node Topology"]
+  subgraph Windows_Host ["Windows 11 Host OS"]
     direction TB
-    MasterNode[Master Node - EC2] -->|Flannel CNI & br_netfilter| Worker1[Worker Node 1 - EC2]
-    MasterNode -->|Flannel CNI & br_netfilter| Worker2[Worker Node 2 - EC2]
+    Minikube["Minikube Cluster (Docker Driver)"]
     
-    subgraph Worker_1_Pods ["Worker Node 1: Observability & Core Logic"]
-      Backend[Backend API Pod Node.js/Express]
-      Prometheus[Prometheus Server]
-      Grafana[Grafana Dashboard]
-      Prometheus -.->|Scrapes /metrics| Backend
-      Grafana -.->|Visualizes Stats| Prometheus
-      PrometheusStorage["Prometheus Storage (/var/lib/prometheus-storage)"]
-      GrafanaStorage["Grafana Storage (/var/lib/grafana-storage)"]
-      Prometheus === PrometheusStorage
-      Grafana === GrafanaStorage
+    subgraph Minikube_Namespace ["Kubernetes Cluster (Default Namespace)"]
+      direction LR
+      FrontendPod["Vite + React Pod (Port 5173)"]
+      BackendPod["Express API Pod (Port 5000)"]
+      MySQLPod["MySQL Relational Pod (Port 3306)"]
+      PrometheusPod["Prometheus Server (Port 9090)"]
+      GrafanaPod["Grafana Dashboard (Port 3000)"]
+      
+      FrontendPod -->|REST API Requests| BackendPod
+      BackendPod -->|SQL Queries| MySQLPod
+      PrometheusPod -.->|Scrapes /metrics| BackendPod
+      GrafanaPod -.->|Queries telemetry| PrometheusPod
     end
-
-    subgraph Worker_2_Pods ["Worker Node 2: Database & Frontend"]
-      Frontend[Frontend Web Pod Vite/Nginx]
-      MySQL[MySQL Relational Pod]
-      Backend -->|SQL Queries| MySQL
-      Frontend -->|JSON/REST API| Backend
-    end
+    
+    PortForward5173["localhost:5173"] ===|Port-Forward Tunnel| FrontendPod
+    PortForward5000["localhost:5000"] ===|Port-Forward Tunnel| BackendPod
+    PortForward3000["localhost:3000"] ===|Port-Forward Tunnel| GrafanaPod
+    PortForward9090["localhost:9090"] ===|Port-Forward Tunnel| PrometheusPod
   end
+```
+
+#### 2. Cloud Production Architecture
+
+This diagram displays the multi-node infrastructure topology deployed on AWS using Terraform and Calico/Flannel CNI bridge filters:
+
+```mermaid
+graph TD
+  subgraph AWS_Cloud ["AWS Cloud (VPC / Subnets)"]
+    direction TB
+    
+    subgraph Control_Plane ["Master Node (EC2 Instance)"]
+      K8sControl["Kubernetes Control Plane API"]
+      JenkinsNode["Jenkins Master Server (Port 8080)"]
+    end
+    
+    subgraph Worker_Node_1 ["Worker Node 1 (EC2 Instance)"]
+      BackendPod["Backend API Pod (NodePort 30001)"]
+      PrometheusPod["Prometheus Server (NodePort 30090)"]
+      GrafanaPod["Grafana Dashboard (NodePort 30030)"]
+      
+      PrometheusStorage["Host Path Mount: /var/lib/prometheus-storage"] === PrometheusPod
+      GrafanaStorage["Host Path Mount: /var/lib/grafana-storage"] === GrafanaPod
+    end
+    
+    subgraph Worker_Node_2 ["Worker Node 2 (EC2 Instance)"]
+      FrontendPod["Frontend Nginx Pod (NodePort 30000)"]
+      MySQLPod["MySQL Relational Pod (Port 3306)"]
+    end
+    
+    K8sControl -->|CNI Tunnels| Worker_Node_1
+    K8sControl -->|CNI Tunnels| Worker_Node_2
+    
+    FrontendPod -->|REST API over NodePort 30001| BackendPod
+    BackendPod -->|SQL over Port 3306| MySQLPod
+    PrometheusPod -.->|Scrapes telemetry| BackendPod
+    GrafanaPod -.->|Queries| PrometheusPod
+  end
+```
+
+---
+
+### B. System Working & Interaction Flows
+
+#### 1. Local Development Working Flow
+
+This sequence chart outlines the developer interaction, local SCM checking, and automated port tunneling in your self-contained workspace:
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Developer as Developer (Host)
+  participant LocalGit as Local Git Repository
+  participant LocalJenkins as Jenkins CI/CD (Host)
+  participant MinikubeK8s as Minikube Cluster
+  participant UserBrowser as Browser Portals
+
+  Developer->>LocalGit: Commit code changes locally
+  loop Every 1 Minute
+    LocalJenkins->>LocalGit: Polling SCM check for new commits
+  end
+  LocalGit-->>LocalJenkins: Detects new local commit
+  activate LocalJenkins
+  LocalJenkins->>LocalJenkins: Execute build: Compile and Lint check
+  LocalJenkins->>MinikubeK8s: Kubectl apply local manifests (k8s-local/)
+  LocalJenkins->>MinikubeK8s: Rolling rollout update of active pods
+  deactivate LocalJenkins
+  Note over Developer, MinikubeK8s: Establish Port-Forward tunnels manually in terminals
+  Developer->>UserBrowser: Navigate http://localhost:5173
+  UserBrowser->>MinikubeK8s: Requests routing through port-forward 5173
+  MinikubeK8s-->>UserBrowser: Serve compiled Vite/Nginx frontend static files
+```
+
+#### 2. Cloud Production Working Flow
+
+This sequence chart outlines the continuous GitOps lifecycle, automated Docker Hub tagging, and zero-downtime rolling update rollout on your AWS infrastructure:
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Dev as Developer (Workstation)
+  participant GitHub as GitHub Repository
+  participant JenkinsAWS as AWS Jenkins Master
+  participant DockerHub as Docker Hub Registry
+  participant AWSCluster as Kubernetes Worker Nodes
+  actor Student as Active Student/User
+
+  Dev->>GitHub: Git push origin main
+  GitHub->>JenkinsAWS: Automated Webhook trigger (/github-webhook/)
+  activate JenkinsAWS
+  JenkinsAWS->>JenkinsAWS: Declarative build pipeline starts
+  JenkinsAWS->>JenkinsAWS: Build Docker frontend and backend images
+  JenkinsAWS->>JenkinsAWS: Audit tagging: latest & ${BUILD_NUMBER}
+  JenkinsAWS->>DockerHub: Authenticate & Push dynamic images
+  JenkinsAWS->>AWSCluster: Kubectl set image deployment with ${BUILD_NUMBER}
+  AWSCluster->>DockerHub: Pull audit-tagged container images
+  AWSCluster->>AWSCluster: Zero-downtime rolling update (Self-healing checks)
+  deactivate JenkinsAWS
+  
+  Student->>AWSCluster: Browse Student ERP Portal (Port 30000)
+  AWSCluster-->>Student: Nginx Serves Portal
+  Student->>AWSCluster: Interacts (e.g. login, view marks)
+  AWSCluster->>AWSCluster: Front Pod ➔ Backend Pod (Port 30001) ➔ MySQL (Port 3306)
+  AWSCluster-->>Student: Display Dynamic Student Academic Data
 ```
 
 ---
