@@ -10,7 +10,7 @@ pipeline {
         DOCKER_FRONTEND = 'student-erp-frontend'
         
         // Explicitly point kubectl to the developer's kubeconfig file
-        KUBECONFIG  = 'C:\\Users\\ajayg\\.kube\\config'
+        KUBECONFIG  = 'C:/Users/ajayg/.kube/config'
 
         // Bypasses any environment HTTP proxy redirects in local environment
         HTTP_PROXY  = ''
@@ -67,6 +67,10 @@ pipeline {
 
         stage('Deploy to Kubernetes') {
             steps {
+                // Print active kubeconfig details for debugging
+                sh 'echo "Current KUBECONFIG: $KUBECONFIG"'
+                sh 'kubectl config view'
+
                 // Apply the local manifests (which have AWS node selectors removed)
                 sh 'kubectl apply -f k8s-local/ --validate=false'
                 
