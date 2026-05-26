@@ -59,6 +59,7 @@ pipeline {
             steps {
                 // Apply configuration resources (ConfigMaps, Services, NodePorts, nodeSelectors)
                 sh 'kubectl apply -f k8s/'
+                sh 'kubectl apply -f monitoring/'
                 
                 // Rollout updates on the active cluster targeting the exact build tag
                 sh "kubectl set image deployment/backend backend=${DOCKER_USER}/${DOCKER_BACKEND}:${BUILD_NUMBER}"

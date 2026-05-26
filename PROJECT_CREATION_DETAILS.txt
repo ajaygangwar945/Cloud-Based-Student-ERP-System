@@ -1,0 +1,694 @@
+================================================================================
+           CLOUD-BASED STUDENT ERP SYSTEM USING DEVOPS PRACTICES
+                  COMPLETE CLOUD ARCHITECTURE & MANUAL
+================================================================================
+
+This comprehensive manual provides an exhaustive, granular breakdown of how the 
+Cloud-Based Student ERP System was created and deployed. It is designed to document 
+a production-grade, multi-node cloud deployment on Amazon Web Services (AWS) using 
+advanced DevOps methodologies. It covers the problem statement, the system connection flow, 
+the step-by-step instructions to launch the cloud project, the detailed runtime workings 
+of the application, a tool-by-tool matrix (detailing where, why, and how each tool is used 
+in the cloud), the step-by-step creation roadmap, all AWS/Linux/DevOps commands, and a complete 
+manifest map of every file in the project.
+
+--------------------------------------------------------------------------------
+1. PROBLEM STATEMENT & PRODUCTION-GRADE DEVOPS SOLUTION
+--------------------------------------------------------------------------------
+Legacy university management and student record systems suffer from multiple 
+fundamental bottlenecks:
+- DATA SILOS & SYNCHRONIZATION LAG: Academic records, fee ledgers, and attendance 
+  databases are isolated, requiring manual synchronization which leads to 
+  discrepancies, lost records, and delays.
+- OPERATIONAL INEFFICIENCY: Teachers spend excessive time manually computing 
+  attendance percentages and inputting marks. Students face delayed notices and 
+  lack real-time dashboards for fees, attendance, and exam grades.
+- RESOURCE SCALABILITY CRUNCHES: Educational portals face highly variable, spikey 
+  workloads. During final exam announcements or course registrations, traffic 
+  surges drastically. Legacy architectures crash under these loads or require 
+  expensive, under-utilized physical servers.
+- DISCONNECTED DEPLOYMENTS & INCONSISTENCY: Manual setup of servers leads to 
+  inconsistencies across deployment platforms, creating configuration drifts 
+  and making code updates slow, manual, and highly error-prone.
+- ABSENCE OFobservability: System failures, server overloads, or memory leaks are 
+  often detected only after students and faculty complain, as there is no proactive 
+  alerting or metrics visualization system.
+
+HOW THIS PRODUCTION CLOUD PROJECT SOLVES THESE ISSUES:
+This project solves these operational challenges by deploying a 3-tier, highly-available 
+Student ERP microservice stack directly onto an AWS Cloud Multi-Node cluster. 
+The system decouples the React frontend (compiled and served via high-performance Nginx), 
+the Node.js/Express API gateway, and the MySQL relational database. 
+
+The stack is containerized using Docker to guarantee consistency, automated and 
+provisioned as Infrastructure as Code (IaC) via Terraform, managed by a continuous 
+integration and continuous delivery (CI/CD) server running Jenkins on AWS, orchestrated 
+on an enterprise-grade Kubernetes cluster across multiple EC2 virtual servers, and 
+continuously monitored using Prometheus and Grafana. This architecture achieves 
+zero-downtime rolling updates, self-healing pod recoveries, and horizontal scaling.
+
+--------------------------------------------------------------------------------
+2. AWS CLOUD ARCHITECTURE AND PRODUCTION CONNECTION FLOW
+--------------------------------------------------------------------------------
+
+      +-------------------------------------------------------------+
+      |                         Developer                           |
+      |                 Code Modification & Git Push                |
+      +------------------------------+------------------------------+
+                                     |
+                                     v
+      +-------------------------------------------------------------+
+      |                         GitHub Repo                         |
+      |             (Triggers Webhook on AWS Jenkins Port)          |
+      +------------------------------+------------------------------+
+                                     |
+                                     v
+      +-------------------------------------------------------------+
+      |                  AWS Jenkins Build Server                   |
+      |               (Hosted on AWS EC2 Master Node)               |
+      |   1. Pulls code   2. Runs tests   3. Builds Docker images   |
+      |   4. Logs into Docker Hub         5. Pushes Docker images   |
+      +------------------------------+------------------------------+
+                                     |
+                                     v
+      +-------------------------------------------------------------+
+      |                        Docker Hub                           |
+      |              Registers & Hosts Docker Images                |
+      +------------------------------+------------------------------+
+                                     |
+                                     v
+      +-------------------------------------------------------------+
+      |              AWS Multi-Node Kubernetes Cluster              |
+      |                                                             |
+      |   +------------------------------------------------------+  |
+      |   |            Kubeadm Master Node (EC2 Instance)        |  |
+      |   |            - Manages Cluster state & Deployments     |  |
+      |   |            - Directs work to Workers via API Server  |  |
+      |   +--------------------------+---------------------------+  |
+      |                              |                              |
+      |       +----------------------+----------------------+       |
+      |       |                                             |       |
+      |       v                                             v       |
+      |  +---------------------------+        +---------------------------+ |
+      |  | K8s Worker Node 1 (EC2)   |        | K8s Worker Node 2 (EC2)   | |
+      |  |                           |        |                           | |
+      |  |  +---------------------+  |        |  +---------------------+  | |
+      |  |  |  Frontend Pods      |  |        |  |  Backend Pods       |  | |
+      |  |  |  (Nginx/React App)  |  |        |  |  (Node.js/Express)  |  | |
+      |  |  |  NodePort: 30090    |  |        |  |  NodePort: 30095    |  | |
+      |  |  +---------------------+  |        |  +---------------------+  | |
+      |  |                           |        |                           | |
+      |  |  +---------------------+  |        |  +---------------------+  | |
+      |  |  |  MySQL Database Pod |  |        |  |  Prometheus Server  |  | |
+      |  |  |  (Persistent Vol)   |  |        |  |  & Grafana (3000)   |  | |
+      |  |  +---------------------+  |        |  +---------------------+  | |
+      |  +---------------------------+        +---------------------------+ |
+      +-------------------------------------------------------------+
+
+PRODUCTION TRAFFIC ROUTING:
+1. Users connect to the React web application on their browsers via the public IP 
+   address of the AWS EC2 cluster on port 30090 (defined as a Kubernetes NodePort service).
+2. The React frontend interacts with the server backend at the AWS public IP 
+   address on port 30095 (defined as the backend Kubernetes NodePort service).
+3. The Express API container handles token validations (JWT) and routes SQL queries 
+   to the MySQL container running on internal Kubernetes port 3306. The database matches 
+   the hostname "mysql" defined in the cluster DNS records.
+4. Prometheus scrapes hardware and software metrics from all EC2 nodes and pods, 
+   visualizing them on Grafana at port 30000 NodePort.
+
+--------------------------------------------------------------------------------
+3. HOW TO LAUNCH AND DEPLOY THE CLOUD PROJECT FROM SCRATCH
+--------------------------------------------------------------------------------
+Follow these chronological steps to launch, boot, configure, and access your entire 
+Student ERP Cloud cluster on AWS from a clean starting state:
+
+STEP 1: CONFIGURING LOCAL CLI PREREQUISITES
+1. Ensure your local machine has the AWS CLI and Terraform installed.
+2. Configure your local environment with AWS administrator Access Keys:
+   aws configure
+   (Provide your AWS Access Key ID, Secret Access Key, region "ap-south-1", and output format "json")
+
+STEP 2: PROVISIONING AWS CLOUD INFRASTRUCTURE VIA TERRAFORM
+1. Navigate to the terraform directory inside your project root:
+   cd terraform
+2. Initialize the Terraform providers (downloads AWS and TLS plugins):
+   terraform init
+3. Run a plan to verify the 3 Ubuntu virtual machines and security firewall rules:
+   terraform plan
+4. Deploy the infrastructure to your live AWS account:
+   terraform apply -auto-approve
+   (This creates your 'K8s-Master-Jenkins' node, two worker nodes, opens necessary firewall ports,
+   and automatically writes your local private SSH key 'erp-cloud-key.pem' to the terraform folder)
+
+STEP 3: INITIALIZING THE KUBERNETES CONTROL PLANE (MASTER NODE)
+1. Grab the master node public IP printed at the end of the Terraform output.
+2. Set secure permissions on your private key (on Linux/macOS run 'chmod 400 erp-cloud-key.pem').
+3. SSH connect to the Master EC2 instance:
+   ssh -i erp-cloud-key.pem ubuntu@<AWS_MASTER_PUBLIC_IP>
+4. Once inside, bootstrap the Kubernetes control plane:
+   sudo kubeadm init --pod-network-cidr=192.168.0.0/16
+5. Run the administrative copy commands printed at the end of the init command to permit kubectl commands:
+   mkdir -p $HOME/.kube
+   sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+   sudo chown $(id -u):$(id -g) $HOME/.kube/config
+6. Apply the Calico CNI cluster networking overlay:
+   kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
+7. Copy the entire 'kubeadm join' command string that was outputted to your master terminal.
+
+STEP 4: JOINING THE WORKER INSTANCES TO THE CLUSTER
+1. Open a new terminal on your local machine, and SSH into your K8s-Worker-1 instance:
+   ssh -i erp-cloud-key.pem ubuntu@<AWS_WORKER_1_PUBLIC_IP>
+2. Paste and execute the copied join command with 'sudo':
+   sudo kubeadm join <AWS_MASTER_PRIVATE_IP>:6443 --token <token_id> --discovery-token-ca-cert-hash sha256:<hash>
+3. Repeat the process by opening another terminal, SSH-ing into K8s-Worker-2, and running the same join command.
+4. Go back to your Master Node SSH terminal and run:
+   kubectl get nodes
+   (Verify that all 3 nodes appear in a 'Ready' state)
+
+STEP 5: DEPLOYING CORE APPLICATION SERVICES
+1. Clone your GitHub repository onto the Master Node (or transfer the 'k8s/' folder to it).
+2. Apply all Kubernetes manifests in the 'k8s' directory:
+   kubectl apply -f k8s/
+   (This deploys the MySQL ConfigMap, database volume pod, Express API backend pod, and React web app pod)
+3. Wait about 30 seconds and check pod statuses:
+   kubectl get pods -o wide
+   (Ensure all pods are in a status of 'Running')
+
+STEP 6: CONFIGURING AUTOMATED JENKINS CI/CD
+1. Retrieve the secure setup admin password from your Master Node:
+   sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+2. Open your web browser and navigate to 'http://<AWS_MASTER_PUBLIC_IP>:8080'.
+3. Paste the password and follow the setup wizard (Install Suggested Plugins -> Create Admin User).
+4. Permit Jenkins to invoke host Docker commands:
+   sudo usermod -aG docker jenkins && sudo systemctl restart jenkins
+5. In Jenkins Dashboard, navigate to 'Manage Jenkins' > 'Credentials' > 'System' > 'Global credentials' > 'Add Credentials':
+   - Kind: Username with password
+   - ID: docker-hub-credentials
+   - Username: ajaygangwar945
+   - Password: [Your Docker Hub Password or Token]
+6. Link GitHub Webhooks: In your GitHub Repository, navigate to Settings > Webhooks > Add Webhook. Paste 'http://<AWS_MASTER_PUBLIC_IP>:8080/github-webhook/' as the Payload URL and select 'application/json'.
+7. Create a new Pipeline job in Jenkins named 'Student-ERP', tick the "GitHub hook trigger for GITScm polling" option, choose "Pipeline script from SCM", set the repository URL, and point to the '*/main' branch. Run the pipeline!
+
+STEP 7: LAUNCHING METRICS OBSERVABILITY (PROMETHEUS & GRAFANA)
+1. On the Master Node terminal, deploy the monitoring configurations:
+   kubectl apply -f monitoring/
+2. Access your monitoring interfaces:
+   - Prometheus UI: http://<AWS_MASTER_PUBLIC_IP>:30090
+   - Grafana Live Dashboard: http://<AWS_MASTER_PUBLIC_IP>:30000 (Login with credentials 'admin' / 'admin')
+
+STEP 8: INTERACTING WITH THE STUDENT ERP APPLICATION
+- Open your browser and navigate to 'http://<AWS_MASTER_PUBLIC_IP>:30090'.
+- Log in using these pre-seeded demo accounts:
+  * Admin Portal: Username 'admin_user' / Password 'password123'
+  * Student Portal: Username 'student_john' / Password 'password123'
+  * Faculty Portal: Username 'faculty_smith' / Password 'password123'
+
+STEP 9: RESUMING AN EXISTING DEPLOYED PROJECT (AFTER STOPPING INSTANCES)
+If you stopped your AWS EC2 instances to save money on cloud billing, you do not need 
+to recreate them from scratch. Follow these steps to resume your existing stack:
+
+1. START THE INSTANCES VIA TERMINAL (AWS CLI):
+   - You can wake your stopped virtual machines directly from your local command terminal.
+   - First, query AWS to fetch the Instance IDs of your K8s Master and Workers:
+     aws ec2 describe-instances --filters "Name=tag:Name,Values=K8s-Master-Jenkins,K8s-Worker-1,K8s-Worker-2" --query "Reservations[*].Instances[*].[InstanceId,State.Name,Tags[?Key=='Name'].Value|[0]]" --output table
+   - Start the three instances by pasting the dynamic Instance IDs returned (e.g. 'i-0ab12c34d56ef7890'):
+     aws ec2 start-instances --instance-ids i-XXXXXXXXXXXX i-YYYYYYYYYYYY i-ZZZZZZZZZZZZ
+   - Wait until the instances have transitioned to a fully running state:
+     aws ec2 wait instance-running --instance-ids i-XXXXXXXXXXXX i-YYYYYYYYYYYY i-ZZZZZZZZZZZZ
+   - (If you prefer a browser interface, log in to the AWS EC2 Console, select the three stopped instances, and click 'Instance State' > 'Start Instances')
+2. REFRESH YOUR ENVIRONMENT STATE:
+   - Since AWS assigns new public IP addresses upon starting stopped instances (unless using Elastic IPs),
+     run this command in your local 'terraform/' folder to update Terraform's local records:
+     terraform refresh
+   - Grab the new 'master_ip' printed at the end of the command.
+3. ESTABLISH CONNECTIVITY:
+   - Your SSH commands, Jenkins console, and React dashboard links will now target the new master public IP:
+     ssh -i erp-cloud-key.pem ubuntu@<NEW_AWS_MASTER_PUBLIC_IP>
+4. AUTO-START RECOVERY:
+   - Docker, kubelet (Kubernetes), and Jenkins system services are enabled to boot automatically on startup.
+   - Wait 1–2 minutes for the Kubernetes control plane and Calico networks to fully initialize.
+   - Verify the pods have auto-recovered and rescheduled:
+     kubectl get pods -o wide
+     (The MySQL, Backend, and Frontend pods will be dynamically brought up by the K8s Deployments)
+5. UPDATE THE GITHUB WEBHOOK:
+   - Go to your GitHub Repository > Settings > Webhooks.
+   - Edit your webhook, update the Payload URL with the new Master IP:
+     'http://<NEW_AWS_MASTER_PUBLIC_IP>:8080/github-webhook/'
+   - Click 'Update Webhook'.
+6. ACCESS THE LIVE ERP SYSTEM:
+   - Open your browser and navigate to your portals:
+     * React Front End: http://<NEW_AWS_MASTER_PUBLIC_IP>:30090
+     * Jenkins Console: http://<NEW_AWS_MASTER_PUBLIC_IP>:8080
+     * Grafana Dashboard: http://<NEW_AWS_MASTER_PUBLIC_IP>:30000
+
+--------------------------------------------------------------------------------
+4. RUNTIME SYSTEM WORKINGS (HOW THE ERP APPLICATION WORKS)
+--------------------------------------------------------------------------------
+This section explains exactly how the 3-tier Student ERP System processes requests,
+manages user access, handles academic workflows, and logs system telemetry under the hood
+during runtime.
+
+1. USER AUTHENTICATION & ROLE-BASED AUTHORIZATION FLOW
+   - The user opens the login portal and enters their username and password.
+   - The React frontend captures this and dispatches an asynchronous HTTP POST request
+     to '/api/login' (via Axios) containing the 'username' and 'password' in JSON format.
+   - The Express backend intercepts this and queries the 'users' table in the MySQL database.
+   - If the user is found, the backend verifies the password:
+     - It first does a direct check, then uses 'bcrypt.compareSync' to verify the plain-text
+       password against the secure, 60-character salted hash stored in the database.
+     - If credentials are valid, the backend signs a JSON Web Token (JWT) using a secure
+       'JWT_SECRET' with a validity limit of 2 hours. This payload embeds the user's
+       ID, username, and assigned role ('admin', 'student', or 'faculty').
+     - The API returns a JSON response containing the generated JWT token, username, and role.
+   - The React frontend receives this payload, saves the token and role in 'localStorage',
+     and uses React-Router-Dom to dynamically mount the corresponding portal page:
+     - 'student' -> /student-dashboard
+     - 'faculty' -> /faculty-dashboard
+     - 'admin' -> /admin-dashboard
+
+2. STUDENT PORTAL DATA DISCOVERY & ACTION FLOW
+   - Once the student loads '/student-dashboard', the React client initiates parallel
+     Axios GET calls: '/api/students' (profile details), '/api/attendance' (logs),
+     '/api/marks' (grades), and '/api/notices' (public announcements).
+   - In each call, the frontend attaches the saved token inside the headers:
+     'Authorization: Bearer <JWT_TOKEN>'.
+   - The Express API gateway processes these calls via the 'authenticateToken' middleware,
+     verifying the signature. If valid, it binds the token payload to the request as 'req.user'.
+   - The backend runs dynamic database queries:
+     - Profiles: Joins 'students', 'users', and 'departments' matching 'user_id = req.user.id'.
+     - Attendance: Resolves the student's primary ID, queries the 'attendance' table,
+       and returns dates, subjects, and states ('present', 'absent', 'late'). The React
+       frontend aggregates these records to render a live circular attendance progress chart.
+     - Marks: Fetches scores obtained in past semesters and visualizes them in a tabular format.
+     - Fees: Fetches total dues, paid balances, and the due date from the 'fees' table.
+   - Fee Payments (Interactive Simulation):
+     - A student can input a payment amount and click "Pay".
+     - React sends a POST request to '/api/fees/pay' with the paid amount.
+     - The backend checks current balances, increments 'amount_paid', determines the new
+       status ('paid', 'pending', or 'partial'), updates the MySQL table, and returns the
+       updated status. The UI updates instantly.
+
+3. FACULTY DASHBOARD WORKFLOW
+   - Faculty members get access to tools allowing class management and evaluation.
+   - When a professor opens their dashboard, the frontend fetches a global list of students
+     and departments via JWT-protected routes.
+   - Recording Attendance:
+     - The professor checks boxes for attendance (e.g. marking Student A 'present' and Student B
+       'absent' in the subject 'Cloud Computing').
+     - The React app issues a POST request to '/api/attendance' with the records.
+     - The backend runs an 'INSERT INTO attendance ... ON DUPLICATE KEY UPDATE status = ?' query,
+       ensuring that if attendance has already been recorded for that date, it is updated
+       without creating redundant rows.
+   - Inputting Grades:
+     - The professor enters grades for a subject and semester.
+     - React POSTs to '/api/marks'. The backend writes this directly using an
+       'INSERT ... ON DUPLICATE KEY UPDATE marks_obtained = ?' query to upsert grades.
+
+4. SYSTEM ADMINISTRATION GATEWAY
+   - Administrative dashboards allow managing high-level institutional entities.
+   - Fetching Analytics:
+     - The dashboard dispatches a GET call to '/api/stats'.
+     - The backend executes a series of asynchronous counts across 'students', 'faculty', and
+       'departments' tables, returning a JSON response showing the total counts.
+   - Publishing Announcements:
+     - Admins write announcements and hit publish.
+     - React POSTs to '/api/notices'. The database records the notice inside the 'notices' table.
+     - The notice is immediately made available to all active dashboards.
+
+5. CONTINUOUS RUNTIME OBSERVABILITY METRICS SCRAPING
+   - As students and faculty interact with the ERP portal, the Express backend captures API loads
+     using the 'prom-client' library.
+   - It maintains an internal gauge 'erp_active_users_total' which fluctuates dynamically (simulating
+     real-world traffic spikes between 50 and 500 active users) and collects default Node telemetry
+     (CPU consumption, heap size, event loops).
+   - The Prometheus server deployed in the Kubernetes cluster scrapes the '/metrics' endpoint
+     every few seconds and records these metrics.
+   - The Grafana container queries Prometheus and plots live graphs of active workloads and resource usage.
+
+--------------------------------------------------------------------------------
+5. DETAILED TOOL USAGE MATRIX (WHICH, WHERE, WHY, AND HOW IN THE CLOUD)
+--------------------------------------------------------------------------------
+
+TOOL: Git / GitHub
+- WHERE USED: Entire project root workspace.
+- WHY USED: To establish standard code versioning, review team code branches, track 
+  all modifications, and serve as the code repository source that triggers the 
+  automated AWS-Jenkins build pipelines.
+- HOW USED: Used to commit application code, database SQL scripts, K8s manifests, 
+  and Terraform files. Integrated with GitHub Webhooks targeting the AWS Jenkins 
+  API to start automated deployments when code is pushed to 'main'.
+
+TOOL: Terraform (Infrastructure as Code)
+- WHERE USED: Inside the `terraform/` directory containing `main.tf`.
+- WHY USED: Declares the entire AWS virtual network and compute infrastructure as 
+  code. Eliminates manual cloud panel clicks, prevents setup drifts, and ensures 
+  anyone can recreate the identical cluster in seconds.
+- HOW USED: Provisions a 3-node AWS cluster using the 'ap-south-1' (Mumbai) region:
+  - Generates a local TLS private key and AWS key-pair (`erp-cloud-key.pem`).
+  - Provisions a custom security group enabling port 22 (SSH), port 8080 (Jenkins), 
+    port 6443 (Kubernetes API), and NodePorts 30000-32767.
+  - provisions three 't3.small' Ubuntu 22.04 LTS EC2 instances (1 Master Node named 
+    `K8s-Master-Jenkins` and 2 Worker Nodes named `K8s-Worker-1` and `K8s-Worker-2`).
+  - Automatically boots the instances with a shell script installing Docker, kubelet, 
+    kubeadm, kubectl, Java 17, and Jenkins.
+
+TOOL: AWS (Amazon Web Services)
+- WHERE USED: Cloud hosting layer (EC2 compute nodes, Virtual Firewalls, and Networking).
+- WHY USED: The premier cloud platform providing high reliability, globally distributed 
+  data centers, instant scaling of hardware, and extensive virtual private networks.
+- HOW USED: Hosts the three EC2 virtual servers where our Kubernetes cluster resides. 
+  Leverages security groups to restrict incoming/outgoing traffic, and utilizes root EBS 
+  blocks (20GB gp3 SSD per node) for high-performance block storage.
+
+TOOL: Kubernetes (K8s) via Kubeadm
+- WHERE USED: Directory `k8s/` containing deployments, services, NodePorts, and ConfigMaps.
+- WHY USED: Enterprise-grade cluster orchestration. Handles the deployment of our containers 
+  across multiple AWS virtual instances, performs zero-downtime rolling update rollouts, 
+  load-balances incoming client traffic, and automatically recreates crashed pods (self-healing).
+- HOW USED: Coordinates the cluster using `kubeadm` with Calico CNI networking. The manifests:
+  - `mysql-configmap.yaml`: Injects root passwords and environment configurations.
+  - `mysql-deployment.yaml`: Manages the MySQL container pod with persistent volume paths.
+  - `backend-deployment.yaml` / `backend-service.yaml`: Manages replicas of the Express server 
+    and routes queries via NodePort 30095.
+  - `frontend-deployment.yaml` / `frontend-service.yaml`: Serves the React interface 
+    on port 30090 NodePort.
+
+TOOL: Jenkins
+- WHERE USED: Runs as an automated system service on the AWS EC2 Master Node (port 8080).
+- WHY USED: Automates the continuous integration and continuous deployment processes. Builds 
+  containers, runs unit/integration tests, and deploys to the cloud cluster automatically on code pushes.
+- HOW USED: Set up with a declarative Jenkinsfile. Upon receiving a GitHub push trigger, 
+  Jenkins checks out the source code, logs into the Docker Hub registry securely, builds 
+  the production Docker images, tags them with unique build numbers, pushes them to 
+  Docker Hub, and executes a rollout command to update the live AWS Kubernetes pods.
+
+TOOL: Docker
+- WHERE USED: Root directory, `backend/Dockerfile`, and `frontend/Dockerfile`.
+- WHY USED: Eliminates environmental differences. Guarantees that our Express backend and 
+  React frontend compile and execute identically on our local systems, inside Jenkins, 
+  and inside the AWS Kubernetes production nodes.
+- HOW USED: Combines node base layers to compile dependencies. The frontend Dockerfile builds 
+  optimized static assets via Vite, serving them via a high-performance Nginx web server. 
+  The backend Dockerfile hosts the Express API gateway.
+
+TOOL: React.js (Vite)
+- WHERE USED: Folder `frontend/` containing public assets and React source components in `src/`.
+- WHY USED: Renders high-speed, component-driven UI views on client browsers, utilizing virtual 
+  DOM optimizations. Vite compiles resources instantly.
+- HOW USED: Renders the Student Portal, Faculty Dashboard, and Admin Dashboard. Communicates 
+  with the Node API using Axios asynchronous HTTP requests.
+
+TOOL: Node.js & Express
+- WHERE USED: Folder `backend/` containing `server.js` and dependencies.
+- WHY USED: High-concurrency, non-blocking asynchronous event loop framework, highly efficient 
+  for routing JSON REST API endpoints and database communication.
+- HOW USED: Processes login calls, hashes database passwords, issues JWT verification tokens, 
+  coordinates database CRUD transactions, and exposes a metrics endpoint (/metrics) for Prometheus.
+
+TOOL: MySQL
+- WHERE USED: Relational database engine running in the AWS K8s cluster.
+- WHY USED: Structured query database maintaining transactional safety (ACID properties) 
+  and schema constraints, ensuring academic records and invoices are never corrupted.
+- HOW USED: Initialized by `init.sql` creating user accounts, faculty records, student registries, 
+  marks databases, attendance logs, and fee tables. Pre-seeded with operational test profiles.
+
+TOOL: Prometheus & Grafana
+- WHERE USED: Directory `monitoring/` containing RBAC roles, configurations, and deployments.
+- WHY USED: Provides comprehensive cloud cluster observability. Prom scrapes real-time memory, 
+  CPU, and network stats, while Grafana plots them onto readable dashboard interfaces.
+- HOW USED: Deployed inside AWS Kubernetes alongside Node Exporters. Scrapes metrics from Express 
+  `/metrics` and node performance counters, feeding them to Grafana on port 30000 NodePort.
+
+--------------------------------------------------------------------------------
+6. HOW THE PROJECT WAS MADE: CHRONOLOGICAL CLOUD ROADMAP
+================================================================================
+
+PHASE 1: ARCHITECTURE PLANNING & SCHEMA STRUCTURE
+- Formulated the database architecture and structural blueprint for a multi-role 
+  ERP database (Admin, Student, Faculty).
+- Drafted a SQL script (`database/init.sql`) creating relational table mappings with 
+  foreign keys, cascading deletions, and pre-seeded, hashed user accounts.
+
+PHASE 2: VERSION CONTROL SETUP
+- Created a Git repository in the project root to manage revisions.
+- Programmed `.gitignore` and `.dockerignore` files to exclude local secrets, 
+  node modules, and logs from being pushed to public channels.
+- Pushed the codebase to a centralized GitHub repository.
+
+PHASE 3: BACKEND API DEVELOPMENT
+- Developed the Express REST API gateway in `backend/server.js` using Node.js.
+- Integrated JWT authentication middlewares, role-based conditional routing, 
+  bcrypt password encryption, and Prometheus custom telemetry clients (`prom-client`).
+
+PHASE 4: VITE + REACT FRONTEND DEVELOPMENT
+- Developed the frontend web application in `frontend/` using Vite and React.
+- Configured visual styles in `src/index.css` adopting a modern dark dashboard theme 
+  with glassmorphism visual styling, responsive grid tables, and CSS micro-animations.
+- Programmed conditional dashboard pages (`Login.jsx`, `StudentDashboard.jsx`, 
+  `FacultyDashboard.jsx`, `AdminDashboard.jsx`) integrated with Axios API routing.
+
+PHASE 5: CONTAINERIZATION & STATIC OPTIMIZATION
+- Built optimized Dockerfiles for both services.
+- Optimized the frontend image by using a multi-stage Docker build: Stage 1 utilizes 
+  node-alpine to compile assets; Stage 2 injects the built static code directly into 
+  an ultra-slim Nginx container, minimizing the production footprint and accelerating loads.
+
+PHASE 6: INFRASTRUCTURE AS CODE PROVISIONING (AWS)
+- Configured Terraform templates in `terraform/main.tf` with the AWS provider.
+- Programmed definitions creating an RSA 4096-bit private key, an AWS key pair, 
+  a security group with open port mappings for SSH/Jenkins/K8s/NodePorts, and 
+  3 AWS EC2 virtual machines (1 Master Node, 2 Worker Nodes).
+- Applied Terraform scripts to spin up virtual instances in AWS ap-south-1.
+
+PHASE 7: MULTI-NODE KUBERNETES CLUSTER BOOTSTRAPPING
+- SSH-ed into the AWS master node to initiate the control plane:
+  sudo kubeadm init --pod-network-cidr=192.168.0.0/16
+- Configured local kubectl administrative files on the master instance.
+- Applied Calico CNI networking overlays to manage internal pod communication.
+- Joined K8s-Worker-1 and K8s-Worker-2 instances to the master node using the tokens 
+  generated by the kubeadm init command.
+
+PHASE 8: KUBERNETES MANIFEST DEPLOYMENT
+- Created YAML manifest files inside `k8s/` mapping deployments and services.
+- Configured a database ConfigMap, established persistent storage directories, 
+  and applied the manifests directly within the cluster:
+  kubectl apply -f k8s/
+- Tested database seeding, verifying relational data populated correctly on the cloud.
+
+PHASE 9: JENKINS CI/CD PIPELINE AUTOMATION
+- Initialized Jenkins on the AWS EC2 Master node, mapping the system group permissions 
+  to allow Jenkins to build Docker images using the system daemon.
+- Configured credentials in Jenkins matching Docker Hub passwords (`docker-hub-credentials`).
+- Integrated GitHub push triggers to automatically execute the `Jenkinsfile` multi-stage pipeline:
+  - Phase 1: Checkout code.
+  - Phase 2: Mock integration and unit testing.
+  - Phase 3: Login to Docker Hub.
+  - Phase 4: Compile & Tag frontend and backend images.
+  - Phase 5: Push images to `ajaygangwar945/student-erp-*` registry.
+  - Phase 6: Apply Kubernetes rolling update rolling updates (`kubectl set image`).
+  - Phase 7: Clean up node docker caching to preserve EC2 disk storage.
+
+PHASE 10: METRICS SCRAPING & VISUALIZATION
+- Deployed Prometheus scrape configurations and cluster roles inside the AWS cluster.
+- Configured Node Exporter daemonsets capturing hardware loads on all EC2 instances.
+- Deployed Grafana, logging in to map Prometheus data pipelines and construct 
+  dashboards monitoring CPU, RAM, and active Express API loads.
+
+--------------------------------------------------------------------------------
+7. COMPLETE PRODUCTION COMMAND REFERENCE (AWS, LINUX, & DEVOPS)
+================================================================================
+
+--- GIT REVISION PUSHES ---
+# Initialize local repo and stage code
+git init
+git add .
+git commit -m "Configure production multi-node cloud deployment"
+
+# Link and push codebase to GitHub
+git remote add origin https://github.com/ajaygangwar945/Cloud-Based-Student-ERP-System.git
+git branch -M main
+git push -u origin main
+
+--- INFRASTRUCTURE PROVISIONING (TERRAFORM) ---
+# Navigate to Terraform configurations
+cd terraform
+
+# Download required AWS and TLS providers
+terraform init
+
+# Validate syntactic correctness
+terraform validate
+
+# Create dry-run plan of EC2 instances and security groups
+terraform plan
+
+# Deploy infrastructure to AWS Cloud
+terraform apply -auto-approve
+
+# Destroy all AWS resources to avoid cloud billing
+terraform destroy -auto-approve
+
+--- RESUMING STOPPED EC2 CLUSTER VIA AWS CLI ---
+# 1. Query AWS to fetch the Instance IDs and current state of your ERP instances
+aws ec2 describe-instances --filters "Name=tag:Name,Values=K8s-Master-Jenkins,K8s-Worker-1,K8s-Worker-2" --query "Reservations[*].Instances[*].[InstanceId,State.Name,Tags[?Key=='Name'].Value|[0]]" --output table
+
+# 2. Start the stopped instances (substitute with your real instance IDs fetched in step 1)
+aws ec2 start-instances --instance-ids i-0123456789abcdef0 i-0123456789abcdef1 i-0123456789abcdef2
+
+# 3. Wait until the instances have transitioned to 'running' status
+aws ec2 wait instance-running --instance-ids i-0123456789abcdef0 i-0123456789abcdef1 i-0123456789abcdef2
+
+# 4. Refresh Terraform's local state to capture the new dynamic public IPs of the started instances
+cd terraform
+terraform refresh
+
+# 5. Output the refreshed public IPs for your master node and worker nodes
+terraform output
+
+--- SSH CONNECTION TO AWS INSTANCES ---
+# Set secure reading permissions on the generated private key (Linux/macOS)
+chmod 400 terraform/erp-cloud-key.pem
+
+# SSH connect into the AWS EC2 Master Node
+ssh -i terraform/erp-cloud-key.pem ubuntu@<AWS_MASTER_PUBLIC_IP>
+
+# SSH connect into AWS EC2 Worker Nodes
+ssh -i terraform/erp-cloud-key.pem ubuntu@<AWS_WORKER_PUBLIC_IP>
+
+--- KUBERNETES CLUSTER BOOTSTRAPPING (ON MASTER NODE) ---
+# Initialize the Kubernetes control plane on the AWS Master Node
+sudo kubeadm init --pod-network-cidr=192.168.0.0/16
+
+# Configure the local administrative kubectl file permissions
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+# Install Calico CNI networking plugin for pod-to-pod routing
+kubectl apply -f https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/calico.yaml
+
+# Generate a new join command token (if token expired)
+kubeadm token create --print-join-command
+
+--- KUBERNETES WORKER JOINING (ON WORKER NODES) ---
+# Run the join command generated by kubeadm init on both Worker EC2 nodes
+sudo kubeadm join <AWS_MASTER_PRIVATE_IP>:6443 --token <token_id> \
+    --discovery-token-ca-cert-hash sha256:<hash_string>
+
+--- KUBERNETES PRODUCTION OPERATIONS (ON MASTER NODE) ---
+# Check node connections in the cluster (should show Ready status)
+kubectl get nodes
+
+# Deploy the entire ERP system manifests (database, backend, frontend)
+kubectl apply -f k8s/
+
+# Verify running pod states across all nodes
+kubectl get pods -o wide
+
+# Verify exposed NodePort service mappings
+kubectl get svc
+
+# Scale the Express API deployment up to 5 replica pods across worker nodes
+kubectl scale deployment backend --replicas=5
+
+# Monitor rolling rollout update states
+kubectl rollout status deployment/backend
+kubectl rollout status deployment/frontend
+
+# Stream logs from a running backend container
+kubectl logs -l app=backend --tail=100 -f
+
+# Completely delete the Kubernetes deployments
+kubectl delete -f k8s/
+
+--- AWS JENKINS MANAGEMENT (ON MASTER NODE) ---
+# View the initial Jenkins admin configuration password
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+
+# Check Jenkins service execution status on the Master node
+sudo systemctl status jenkins
+
+# Add Jenkins user to the docker group (allows docker access without sudo)
+sudo usermod -aG docker jenkins
+sudo systemctl restart jenkins
+
+--- MONITORING STACK DEPLOYMENTS (ON K8S CLUSTER) ---
+# Apply cluster configurations for Prometheus monitoring scraping
+kubectl apply -f monitoring/prometheus-rbac.yaml
+kubectl apply -f monitoring/prometheus-config.yaml
+
+# Deploy Prometheus server, Grafana, and Node Exporter daemonset
+kubectl apply -f monitoring/prometheus-deployment.yaml
+kubectl apply -f monitoring/grafana-deployment.yaml
+kubectl apply -f monitoring/node-exporter.yaml
+
+--------------------------------------------------------------------------------
+8. COMPLETE CLOUD FILE MANIFEST MAP
+================================================================================
+
+Cloud-Based-Student-ERP-System/
+│
+├── .gitignore                     # Git exclude files (ignores state files, keys)
+├── Jenkinsfile                    # Multi-stage automated CI/CD pipeline code
+├── Documentation.txt              # Initial architectural plan and DevOps blueprint
+├── local-setup-guide.md           # Quick setup guidelines for Docker Compose
+├── local-devops-runbook.md        # Reference commands for local components
+├── PROJECT_CREATION_DETAILS.txt   # This comprehensive cloud deployment document
+│
+├── backend/                       # BACKEND REST API CODEBASE
+│   ├── .dockerignore              # Files ignored by Docker build
+│   ├── .env                       # Backend local environment configs
+│   ├── Dockerfile                 # Configuration compiling the Node.js API container
+│   ├── package.json               # Defines packages (Express, MySQL2, JWT, Prom-Client)
+│   ├── package-lock.json          # Lock file locking exact node dependency versions
+│   ├── seed.js                    # Database seed execution file for development
+│   └── server.js                  # Express logic, REST routes, JWT, Prom metrics endpoint
+│
+├── frontend/                      # FRONTEND USER INTERFACE CODEBASE
+│   ├── .dockerignore              # Files ignored by frontend Docker build
+│   ├── .gitignore                 # Exclude files inside the React app
+│   ├── Dockerfile                 # Multi-stage Docker config serving React via Nginx
+│   ├── index.html                 # Index HTML file
+│   ├── package.json               # Frontend dependencies (React 19, Axios, Vite)
+│   ├── package-lock.json          # Lock file locking exact node packages
+│   ├── README.md                  # Quick build guides for Vite UI
+│   ├── vite.config.js             # Vite compiler config
+│   ├── eslint.config.js           # Syntax linter guidelines for React
+│   └── src/                       # React Source Code
+│       ├── main.jsx               # App mounting script
+│       ├── index.css              # Dark theme styling, glass dashboard UI layout
+│       ├── App.jsx                # Layout routes and session protectors
+│       ├── App.css                # Visual custom adjustments
+│       ├── assets/                # Folder for graphic assets (empty)
+│       └── pages/                 # Role-Based User Portals
+│           ├── Login.jsx          # Login portal page utilizing Axios integrations
+│           ├── StudentDashboard.jsx # Panel showing attendance, marks, and billing
+│           ├── FacultyDashboard.jsx # Panel allowing marks inputs and attendance logs
+│           └── AdminDashboard.jsx # Analytical overview panel of institute size
+│
+├── database/                      # DATABASE SCHEMA DESIGN LAYER
+│   └── init.sql                   # MySQL tables creation script and mock data seeds
+│
+├── k8s/                           # KUBERNETES manifests DIRECTORY
+│   ├── mysql-configmap.yaml       # ConfigMap storing passwords & setup queries
+│   ├── mysql-deployment.yaml      # Deploys relational database matching volume mounts
+│   ├── backend-deployment.yaml    # API pod replica controllers on worker nodes
+│   ├── backend-service.yaml       # Exposes the backend service on NodePort 30095
+│   ├── frontend-deployment.yaml   # Compiles Nginx React pods across workers
+│   └── frontend-service.yaml      # Exposes the web application on NodePort 30090
+│
+├── monitoring/                    # Observability CONFIGURATIONS
+│   ├── prometheus-rbac.yaml       # Defines permissions for scraped metrics
+│   ├── prometheus-config.yaml     # Scrapes endpoints, rules, and durations
+│   ├── prometheus-deployment.yaml # Controls deployment state of Prometheus
+│   ├── node-exporter.yaml         # Node Exporter daemonset capturing hardware loads
+│   └── grafana-deployment.yaml    # Controls deployment of Grafana on NodePort 30000
+│
+└── terraform/                     # INFRASTRUCTURE AS CODE (AWS CLOUD PROVISIONING)
+    ├── .terraform/                # Internal directory containing AWS plugins
+    ├── .terraform.lock.hcl        # Locks verified AWS provider versions
+    ├── erp-cloud-key.pem          # Generated private SSH key accessing cloud cluster
+    ├── main.tf                    # Declares key-pairs, security groups, & 3 EC2 nodes
+    ├── terraform.tfstate          # State database recording deployed AWS entities
+    └── terraform.tfstate.backup   # Backup copy of state database
+================================================================================

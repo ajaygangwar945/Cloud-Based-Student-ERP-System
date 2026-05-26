@@ -13,6 +13,10 @@ spec:
         app: prometheus
     spec:
       serviceAccountName: prometheus
+      nodeSelector:
+        kubernetes.io/hostname: ip-172-31-47-49
+      securityContext:
+        runAsUser: 0
       containers:
         - name: prometheus
           image: prom/prometheus:latest
@@ -22,10 +26,16 @@ spec:
             - name: config-volume
               mountPath: /etc/prometheus/prometheus.yml
               subPath: prometheus.yml
+            - name: prometheus-storage
+              mountPath: /prometheus
       volumes:
         - name: config-volume
           configMap:
             name: prometheus-config
+        - name: prometheus-storage
+          hostPath:
+            path: /var/lib/prometheus-storage
+            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service
